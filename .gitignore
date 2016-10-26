@@ -1,6 +1,9 @@
 *.class
 *.log
 
+# tests and stuff
+test.js
+
 # sbt specific
 .cache
 .history
