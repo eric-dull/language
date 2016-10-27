@@ -16,8 +16,12 @@ case class EntityRequest(text: String, lang: String)
 class Server(context: ServerContext) extends HttpService(context) {
 
   val entityProcessor = new EntityProcessor
-  val headers = HttpHeaders(
+  val jsonHeaders = HttpHeaders(
     HttpHeader("Content-Type", "application/json; charset=utf-8")
+  )
+
+  val htmlHeaders = HttpHeaders(
+    HttpHeader("Content-Type", "text/html; charset=utf-8")
   )
 
 
@@ -26,19 +30,19 @@ class Server(context: ServerContext) extends HttpService(context) {
     case request @ Post on Root / "entities" / "list" => {
       val entityRequest = getEntityRequest(request)
       val entities = entityProcessor.getEntities(entityRequest.text)
-      Callback.successful(request.ok(JsonUtil.toJson(entities), headers))
+      Callback.successful(request.ok(JsonUtil.toJson(entities), jsonHeaders))
     }
 
     case request @ Post on Root / "entities" / "positions_by_type" => {
       val entityRequest = getEntityRequest(request)
       val entities = entityProcessor.getEntityPositionsByType(entityRequest.text)
-      Callback.successful(request.ok(JsonUtil.toJson(entities), headers))
+      Callback.successful(request.ok(JsonUtil.toJson(entities), jsonHeaders))
     }
 
     case request @ Post on Root / "entities" / "highlighted_text" => {
       val entityRequest = getEntityRequest(request)
       val entities = entityProcessor.getHighlightedText(entityRequest.text)
-      Callback.successful(request.ok(entities))
+      Callback.successful(request.ok(entities, htmlHeaders))
     }
 
   }
