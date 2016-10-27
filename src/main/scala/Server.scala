@@ -1,7 +1,7 @@
 import akka.actor.ActorSystem
 import colossus._
 import core._
-import network.eic.language.Language
+import network.eic.language.EntityProcessor
 import service._
 import protocols.http._
 import UrlParsing._
@@ -15,36 +15,46 @@ import JsonUtil._
 case class EntityRequest(text: String, lang: String)
 class Server(context: ServerContext) extends HttpService(context) {
 
-  val lang = Language
+  val entityProcessor = new EntityProcessor
   val headers = HttpHeaders(
     HttpHeader("Content-Type", "application/json; charset=utf-8")
   )
 
 
   def handle = {
-    case request @ Post on Root  => {
-      var ll = request.head.parameters.getFirst("lang")
-      val text: String = request.body.as[String].get // scala.io.Source.fromFile("resources/text.txt", "utf-8").getLines.mkString
-      val entities = lang.getEntityPositionsByType(cleanText(text))
+
+    case request @ Post on Root / "entities" / "list" => {
+      val entityRequest = getEntityRequest(request)
+      val entities = entityProcessor.getEntities(entityRequest.text)
       Callback.successful(request.ok(JsonUtil.toJson(entities), headers))
     }
 
-    case request @ Post on Root / "json" => {
-      val requestAsStr: String = request.body.as[String].get // scala.io.Source.fromFile("resources/text.txt", "utf-8").getLines.mkString
-      val entityRequest: EntityRequest = JsonUtil.fromJson[EntityRequest](requestAsStr)
-      val entities = lang.getEntityPositionsByType(cleanText(entityRequest.text))
+    case request @ Post on Root / "entities" / "positions_by_type" => {
+      val entityRequest = getEntityRequest(request)
+      val entities = entityProcessor.getEntityPositionsByType(entityRequest.text)
       Callback.successful(request.ok(JsonUtil.toJson(entities), headers))
     }
 
-    case request @ Get on Root / "byType" => {
-      val text: String = scala.io.Source.fromFile("resources/text.txt", "utf-8").getLines.mkString
-      val entities = lang.getEntitiesByType(text)
-      Callback.successful(request.ok(JsonUtil.toJson(entities), headers))
+    case request @ Post on Root / "entities" / "highlighted_text" => {
+      val entityRequest = getEntityRequest(request)
+      val entities = entityProcessor.getHighlightedText(entityRequest.text)
+      Callback.successful(request.ok(entities))
     }
+
   }
 
-  def cleanText(text: String): String = {
-    text.filter(_ >= ' ')
+  def getEntityRequest(request: HttpRequest): EntityRequest = {
+    val inputParam = request.head.parameters.getFirst("input")
+    val langParam =  request.head.parameters.getFirst("lang").getOrElse("")
+    val requestAsStr: String = request.body.as[String].get
+    val inputType = if (inputParam.equals("json")) "json" else "raw"
+
+    try {
+      if (inputType == "json") JsonUtil.fromJson[EntityRequest](requestAsStr)
+      else new EntityRequest(requestAsStr, langParam)
+    } catch {
+      case _: Exception => null
+    }
   }
 }
 

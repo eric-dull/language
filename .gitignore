@@ -3,6 +3,7 @@
 
 # tests and stuff
 test.js
+index.html
 
 # sbt specific
 .cache
